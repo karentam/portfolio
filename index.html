@@ -1,0 +1,54 @@
+<h2>Cyclistic bike-share analysis case study (2022)</h2>
+<h5>Karen Tam</h5>
+
+<br>
+
+<h3>Purpose</h3>
+
+<h3>Using SQL to clean and analyse data in BigQuery</h3>
+
+<h5>Combine 12 monthly tables into a table</h5>
+
+-- Create a new table by combining all trip data from Jan 2022 to Dec 2022 in 12 tables
+
+CREATE TABLE tripdata_2022.tripdata_2022_all AS
+SELECT * 
+FROM tripdata_2022.tripdata_202201
+UNION DISTINCT
+SELECT *
+FROM tripdata_2022.tripdata_202202
+UNION DISTINCT
+SELECT *
+FROM tripdata_2022.tripdata_202203
+UNION DISTINCT
+SELECT *
+FROM tripdata_2022.tripdata_202204
+UNION DISTINCT
+SELECT *
+FROM tripdata_2022.tripdata_202205
+UNION DISTINCT
+SELECT *
+FROM tripdata_2022.tripdata_202206
+UNION DISTINCT
+SELECT *
+FROM tripdata_2022.tripdata_202207
+UNION DISTINCT
+SELECT *
+FROM tripdata_2022.tripdata_202208
+UNION DISTINCT
+SELECT *
+FROM tripdata_2022.tripdata_202209
+UNION DISTINCT
+SELECT *
+FROM tripdata_2022.tripdata_202210
+UNION DISTINCT
+SELECT *
+FROM tripdata_2022.tripdata_202211
+UNION DISTINCT
+SELECT *
+FROM tripdata_2022.tripdata_202212;
+<img src="create_table.jpg" width="700" height="500">
+<img src="create_table_schema.jpg" width="700" height="500">
+
+Data Cleaning using SQL in BigQuery
+
