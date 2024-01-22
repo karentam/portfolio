@@ -1,0 +1,261 @@
+-- Create a new table by combining all trip data from Jan 2022 to Dec 2022 in 12 tables
+
+CREATE TABLE tripdata_2022.tripdata_2022_all AS
+SELECT * 
+FROM tripdata_2022.tripdata_202201
+UNION DISTINCT
+SELECT *
+FROM tripdata_2022.tripdata_202202
+UNION DISTINCT
+SELECT *
+FROM tripdata_2022.tripdata_202203
+UNION DISTINCT
+SELECT *
+FROM tripdata_2022.tripdata_202204
+UNION DISTINCT
+SELECT *
+FROM tripdata_2022.tripdata_202205
+UNION DISTINCT
+SELECT *
+FROM tripdata_2022.tripdata_202206
+UNION DISTINCT
+SELECT *
+FROM tripdata_2022.tripdata_202207
+UNION DISTINCT
+SELECT *
+FROM tripdata_2022.tripdata_202208
+UNION DISTINCT
+SELECT *
+FROM tripdata_2022.tripdata_202209
+UNION DISTINCT
+SELECT *
+FROM tripdata_2022.tripdata_202210
+UNION DISTINCT
+SELECT *
+FROM tripdata_2022.tripdata_202211
+UNION DISTINCT
+SELECT *
+FROM tripdata_2022.tripdata_202212;
+
+-- Check duplicate
+
+SELECT ride_id, COUNT(*)
+FROM tripdata_2022.tripdata_2022_all
+GROUP BY ride_id
+HAVING COUNT(*) > 1;
+
+-- Check total counts in 12 months
+
+Select COUNT(*)
+FROM tripdata_2022.tripdata_2022_all;
+
+-- Check if data from 12 months are included in Table tripdata_2022_all. Check each month by changing month in WHERE statement. 
+
+SELECT started_at
+FROM tripdata_2022.tripdata_2022_all
+WHERE CAST(started_at AS string) LIKE '2022-12' || '%';  
+
+-- Check null value
+
+SELECT *
+FROM tripdata_2022.tripdata_2022_all
+WHERE ride_id IS NULL; -- No data display
+
+SELECT *
+FROM tripdata_2022.tripdata_2022_all
+WHERE member_casual IS NULL; -- No data display
+
+SELECT *
+FROM tripdata_2022.tripdata_2022_all
+WHERE started_at IS NULL OR ended_at IS NULL; -- No data display
+
+SELECT *
+FROM tripdata_2022.tripdata_2022_all
+WHERE rideable_type IS NULL; -- No data display
+
+SELECT *
+FROM tripdata_2022.tripdata_2022_all
+WHERE start_lat IS NULL OR start_lng IS NULL; -- No data display
+
+SELECT *
+FROM tripdata_2022.tripdata_2022_all
+WHERE end_lat IS NULL OR end_lng IS NULL; -- 5858 rides without end_lat and/or end_lng
+
+SELECT *
+FROM tripdata_2022.tripdata_2022_all
+WHERE start_station_id IS NULL OR end_station_id IS NULL;
+
+SELECT *
+FROM tripdata_2022.tripdata_2022_all
+WHERE start_station_id IS NULL AND start_station_name IS NOT NULL;
+
+SELECT *
+FROM tripdata_2022.tripdata_2022_all
+WHERE end_station_id IS NULL AND end_station_name IS NOT NULL;
+
+SELECT start_station_id, COUNT(*) AS null_count
+FROM tripdata_2022.tripdata_2022_all
+WHERE start_station_id IS NULL
+GROUP BY start_station_id;
+
+SELECT end_station_id, COUNT(*) AS null_count
+FROM tripdata_2022.tripdata_2022_all
+WHERE end_station_id IS NULL
+GROUP BY end_station_id;
+
+-- Check invalid value
+
+SELECT *
+FROM tripdata_2022.tripdata_2022_all
+WHERE CAST(started_at AS string) NOT LIKE '2022%';
+
+SELECT *
+FROM tripdata_2022.tripdata_2022_all
+WHERE CAST(ended_at AS STRING) NOT LIKE '2022%' 
+  AND CAST(ended_at AS STRING) NOT LIKE '2023-01-01%';  -- 6 counts with a reasonable ended date 2013-01-02
+
+SELECT *
+FROM tripdata_2022.tripdata_2022_all
+WHERE member_casual NOT IN ('member', 'casual');
+
+SELECT DISTINCT rideable_type
+FROM tripdata_2022.tripdata_2022_all;
+
+SELECT DISTINCT
+  SUBSTR(CAST(started_at AS STRING), -3) AS started_at_time_zone,
+  SUBSTR(CAST(ended_at AS STRING), -3) AS ended_at_time_zone
+FROM tripdata_2022.tripdata_2022_all;
+
+-- Create a copy of Table tripdata_2022_all
+
+CREATE TABLE tripdata_2022.tripdata_2022_all_copy AS
+SELECT *
+FROM tripdata_2022.tripdata_2022_all;
+
+-- Create new columns for start date, start time, end date, and end time from original columns started_at and ended_at
+
+SELECT 
+  DATE(started_at) AS started_at_date,
+  TIME(started_at) AS started_at_time,
+  DATE(ended_at) AS ended_at_date,
+  TIME(ended_at) AS ended_at_time
+FROM tripdata_2022.tripdata_2022_all_copy; -- Check result before creating new columns to the table
+
+ALTER TABLE tripdata_2022.tripdata_2022_all_copy
+  ADD COLUMN started_at_date DATE,
+  ADD COLUMN started_at_time TIME,
+  ADD COLUMN ended_at_date DATE,
+  ADD COLUMN ended_at_time TIME; 
+
+UPDATE tripdata_2022.tripdata_2022_all_copy
+  SET 
+  started_at_date = DATE(started_at),
+  started_at_time = TIME(started_at),
+  ended_at_date = DATE(ended_at),
+  ended_at_time = TIME (ended_at)
+WHERE TRUE; -- Applies to all rows in the table
+
+-- Create new column for ride length in minutes
+
+SELECT
+  started_at,
+  ended_at,
+  TIMESTAMP_DIFF(ended_at, started_at, MINUTE) AS ride_length_min
+FROM tripdata_2022.tripdata_2022_all_copy;  -- Check result before creating new column to the table
+
+SELECT 
+ride_id, started_at, ended_at, TIMESTAMP_DIFF(ended_at, started_at, MINUTE) AS ride_length_min
+FROM tripdata_2022.tripdata_2022_all_copy
+WHERE TIMESTAMP_DIFF(ended_at, started_at, MINUTE) < 0; -- Find out 83 invalid rides with negative ride length
+
+DELETE FROM tripdata_2022.tripdata_2022_all_copy 
+WHERE TIMESTAMP_DIFF(ended_at, started_at, MINUTE) < 0; -- Delete 83 invalid rides with negative ride length
+
+SELECT 
+  COUNT(*) AS total_rows,
+  MAX(TIMESTAMP_DIFF(ended_at, started_at, MINUTE)) AS max_ride_length_min,
+  MIN(TIMESTAMP_DIFF(ended_at, started_at, MINUTE)) AS min_ride_length_min,
+  AVG(TIMESTAMP_DIFF(ended_at, started_at, MINUTE)) AS avg_ride_length_min
+FROM tripdata_2022.tripdata_2022_all_copy;
+
+ALTER TABLE tripdata_2022.tripdata_2022_all_copy
+ADD COLUMN ride_length_min INT64;
+
+UPDATE tripdata_2022.tripdata_2022_all_copy
+  SET ride_length_min = TIMESTAMP_DIFF(ended_at, started_at, MINUTE)
+WHERE TRUE; -- Applies to all rows in the table
+
+-- Create new column for day of the week
+
+SELECT 
+  FORMAT_DATE('%A', DATE(started_at_date)) AS started_at_day_of_week,
+  FORMAT_DATE('%A', DATE(ended_at_date)) AS ended_at_day_of_week
+FROM tripdata_2022.tripdata_2022_all_copy; -- Check result before creating a new column to the table
+
+ALTER TABLE tripdata_2022.tripdata_2022_all_copy
+ADD COLUMN day_of_week STRING; -- Store the day name as a string
+
+UPDATE tripdata_2022.tripdata_2022_all_copy
+SET day_of_week = FORMAT_DATE('%A', DATE(started_at_date)) -- %A format specifier represents the full weekday name
+WHERE TRUE; 
+
+-- Create a copy of a table for analysis
+
+CREATE TABLE tripdata_2022.tripdata_2022_all_final AS
+SELECT *
+FROM tripdata_2022.tripdata_2022_all_copy;
+
+-- Create a new table tripdata_2022_top_stations for a map to show top 100 stations for members and casual riders
+
+CREATE TABLE tripdata_2022.tripdata_2022_top_stations AS
+
+WITH temp_mbr_start_loc AS
+(
+  SELECT CONCAT(CAST(start_lat AS STRING), ' ',CAST(start_lng AS STRING)) AS station, member_casual, start_lat AS lat, start_lng AS lng, COUNT(*) AS count
+  FROM tripdata_2022.tripdata_2022_all_final
+  WHERE start_lat IS NOT NULL AND start_lng IS NOT NULL AND member_casual = 'member'
+  GROUP BY lat, lng, member_casual, station
+  ORDER BY count DESC
+  LIMIT 100
+),
+
+temp_mbr_end_loc AS
+(
+  SELECT CONCAT(CAST(end_lat AS STRING), ' ',CAST(end_lng AS STRING)) AS station, member_casual, end_lat AS lat, end_lng AS lng, COUNT(*) AS count
+  FROM tripdata_2022.tripdata_2022_all_final
+  WHERE end_lat IS NOT NULL AND end_lng IS NOT NULL AND member_casual = 'member'
+  GROUP BY lat, lng, member_casual, station
+  ORDER BY count DESC
+  LIMIT 100
+),
+
+temp_cas_start_loc AS
+(
+  SELECT CONCAT(CAST(start_lat AS STRING), ' ',CAST(start_lng AS STRING)) AS station, member_casual, start_lat AS lat, start_lng AS lng, COUNT(*) AS count
+  FROM tripdata_2022.tripdata_2022_all_final
+  WHERE start_lat IS NOT NULL AND start_lng IS NOT NULL AND member_casual = 'casual'
+  GROUP BY lat, lng, member_casual, station
+  ORDER BY count DESC
+  LIMIT 100
+),
+
+temp_cas_end_loc AS
+(
+  SELECT CONCAT(CAST(end_lat AS STRING), ' ',CAST(end_lng AS STRING)) AS station, member_casual, end_lat AS lat, end_lng AS lng, COUNT(*) AS count
+  FROM tripdata_2022.tripdata_2022_all_final
+  WHERE end_lat IS NOT NULL AND end_lng IS NOT NULL AND member_casual = 'casual'
+  GROUP BY lat, lng, member_casual, station
+  ORDER BY count DESC
+  LIMIT 100
+)
+
+SELECT * FROM (
+  SELECT * FROM temp_mbr_start_loc
+  UNION ALL
+  SELECT * FROM temp_mbr_end_loc
+  UNION ALL
+  SELECT * FROM temp_cas_start_loc
+  UNION ALL
+  SELECT * FROM temp_cas_end_loc
+); 
+
